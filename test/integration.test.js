@@ -94,7 +94,7 @@ describe('Integration Tests', () => {
       const startTime = Date.now();
       const evalFile = path.join(EVALS_DIR, 'curriculum/5th-grade-math.yml');
 
-      await runVibeCheck({ file:evalFile);
+      await runVibeCheck({ file: evalFile });
 
       const duration = Date.now() - startTime;
       console.log(`  5th-grade-math.yml completed in ${duration}ms`);
@@ -111,13 +111,13 @@ describe('Integration Tests', () => {
 
       // Parallel execution
       const parallelStart = Date.now();
-      await Promise.all(evalFiles.map(f => runVibeCheck({ file:f)));
+      await Promise.all(evalFiles.map(f => runVibeCheck({ file: f })));
       const parallelDuration = Date.now() - parallelStart;
 
       // Sequential execution
       const sequentialStart = Date.now();
       for (const f of evalFiles) {
-        await runVibeCheck({ file:f);
+        await runVibeCheck({ file: f });
       }
       const sequentialDuration = Date.now() - sequentialStart;
 
@@ -135,8 +135,8 @@ describe('Integration Tests', () => {
     test('results should be deterministic-ish for same input', async () => {
       const evalFile = path.join(EVALS_DIR, 'curriculum/5th-grade-math.yml');
 
-      const results1 = await runVibeCheck({ file:evalFile);
-      const results2 = await runVibeCheck({ file:evalFile);
+      const results1 = await runVibeCheck({ file: evalFile });
+      const results2 = await runVibeCheck({ file: evalFile });
 
       // Total should always be the same
       expect(results1.total).toBe(results2.total);
