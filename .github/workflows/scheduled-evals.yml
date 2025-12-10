@@ -37,7 +37,7 @@ jobs:
 
       - name: Run All Evals
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VIBECHECK_API_KEY: ${{ secrets.VIBECHECK_API_KEY }}
           VIBECHECK_MODEL: ${{ github.event.inputs.model || 'anthropic/claude-3.5-sonnet' }}
         run: |
           echo "Running full eval suite..."

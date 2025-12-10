@@ -125,7 +125,7 @@ jobs:
       - name: Run ${{ matrix.eval.name }} Eval
         id: run_eval
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VIBECHECK_API_KEY: ${{ secrets.VIBECHECK_API_KEY }}
           DEBUG: ${{ github.event.inputs.debug_mode }}
         run: |
           echo "Running ${{ matrix.eval.name }} eval..."
@@ -199,7 +199,7 @@ jobs:
       - name: Run ${{ matrix.eval.name }} Eval
         id: run_eval
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VIBECHECK_API_KEY: ${{ secrets.VIBECHECK_API_KEY }}
           DEBUG: ${{ github.event.inputs.debug_mode }}
         run: |
           echo "Running ${{ matrix.eval.name }} eval..."
@@ -255,7 +255,7 @@ jobs:
 
       - name: Run Jest Tests
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VIBECHECK_API_KEY: ${{ secrets.VIBECHECK_API_KEY }}
         run: npm run test:ci
 
       - name: Upload Test Results

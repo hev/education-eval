@@ -18,8 +18,7 @@ cd education-eval
 npm install
 
 # Set up environment
-cp .env.example .env
-# Add your ANTHROPIC_API_KEY to .env
+export VIBECHECK_API_KEY=your-key-here
 
 # Run a single eval
 npx vibecheck evals/curriculum/5th-grade-math.yml
@@ -149,7 +148,7 @@ The included workflows provide:
 
 Add these to your GitHub repository secrets:
 
-- `ANTHROPIC_API_KEY` - Your Anthropic API key
+- `VIBECHECK_API_KEY` - Your Vibecheck API key
 
 ### Manual Triggers
 

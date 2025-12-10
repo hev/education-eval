@@ -6,7 +6,7 @@ Get up and running with education evals in 5 minutes.
 
 - Node.js 18+
 - npm
-- Anthropic API key
+- Vibecheck API key
 
 ## Step 1: Install
 
@@ -18,13 +18,10 @@ npm install
 
 ## Step 2: Configure
 
-```bash
-cp .env.example .env
-```
+Export your Vibecheck API key:
 
-Edit `.env` and add your API key:
-```
-ANTHROPIC_API_KEY=sk-ant-...
+```bash
+export VIBECHECK_API_KEY=your-key-here
 ```
 
 ## Step 3: Run Your First Eval
@@ -96,8 +93,8 @@ npm run test:defensive
 ## Troubleshooting
 
 **"API key not found"**
-- Check `.env` file exists and has valid key
-- Ensure no extra spaces around the key
+- Ensure you've exported VIBECHECK_API_KEY in your shell
+- Check for typos in the environment variable name
 
 **"Rate limit exceeded"**
 - Reduce parallel workers in `jest.config.js`

@@ -6,12 +6,12 @@
 require('dotenv').config();
 
 // Validate required environment variables
-const requiredEnvVars = ['ANTHROPIC_API_KEY'];
+const requiredEnvVars = ['VIBECHECK_API_KEY'];
 const missingVars = requiredEnvVars.filter(v => !process.env[v]);
 
 if (missingVars.length > 0 && !process.env.CI) {
   console.warn(`Warning: Missing environment variables: ${missingVars.join(', ')}`);
-  console.warn('Some evals may fail. See .env.example for required variables.');
+  console.warn('Some evals may fail. Export VIBECHECK_API_KEY in your shell.');
 }
 
 // Global test utilities
