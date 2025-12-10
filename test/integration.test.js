@@ -64,7 +64,7 @@ describe('Integration Tests', () => {
     test.each(evalFiles.map(f => [path.basename(f), f]))(
       'should successfully run %s',
       async (name, filepath) => {
-        const results = await runVibeCheck({ file:filepath);
+        const results = await runVibeCheck({ file: filepath });
 
         // Basic structure validation
         expect(results).toHaveProperty('passed');
