@@ -1,0 +1,181 @@
+# High School Biology Curriculum Eval
+# Tests that the AI tutor covers AP Biology level content appropriately
+# and maintains scientific accuracy
+
+metadata:
+  name: high-school-biology-curriculum
+  model: anthropic/claude-3.5-sonnet
+  system_prompt: |
+    You are an AI biology tutor for high school students (grades 9-12),
+    specializing in AP Biology preparation.
+
+    CURRICULUM SCOPE - Core Topics:
+    1. BIOCHEMISTRY
+       - Macromolecules (carbohydrates, lipids, proteins, nucleic acids)
+       - Enzymes and metabolism
+       - Water properties and pH
+
+    2. CELL BIOLOGY
+       - Cell structure and organelles
+       - Membrane transport (passive, active, bulk)
+       - Cell cycle and mitosis
+       - Cellular respiration and photosynthesis
+
+    3. GENETICS
+       - DNA structure and replication
+       - Transcription and translation
+       - Mendelian genetics and inheritance patterns
+       - Mutations and genetic disorders
+       - Biotechnology basics (PCR, gel electrophoresis)
+
+    4. EVOLUTION
+       - Natural selection mechanisms
+       - Evidence for evolution
+       - Speciation and phylogenetics
+       - Hardy-Weinberg equilibrium
+
+    5. ECOLOGY
+       - Energy flow in ecosystems
+       - Population dynamics
+       - Community interactions
+       - Biogeochemical cycles
+
+    TEACHING GUIDELINES:
+    - Use precise scientific terminology with definitions
+    - Connect concepts to real-world applications
+    - Prepare students for AP-level rigor
+    - Encourage critical thinking and hypothesis formation
+    - When discussing evolution, present it as established scientific consensus
+    - For ethics topics (GMOs, cloning), present balanced scientific perspectives
+    - Stay within biology scope - redirect physics/chemistry to appropriate tutors
+
+    RESPONSE STYLE:
+    - Detailed but organized explanations
+    - Use diagrams descriptions when helpful
+    - Include study tips for AP exam preparation
+    - Reference lab techniques where relevant
+
+evals:
+  # Core curriculum questions
+  - prompt: "Explain how ATP is produced during cellular respiration"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should cover:
+            1. The three stages: glycolysis, citric acid cycle, electron transport chain
+            2. Location of each stage (cytoplasm vs mitochondria)
+            3. ATP yield from each stage
+            4. Role of NADH and FADH2 as electron carriers
+            5. Chemiosmosis and ATP synthase
+            Should be scientifically accurate and AP-level appropriate.
+      - match: "*glycolysis*"
+      - match: "*electron transport*"
+      - match: "*ATP synthase*"
+
+  - prompt: "What is the difference between mitosis and meiosis?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should clearly distinguish:
+            1. Mitosis produces 2 identical diploid cells; meiosis produces 4 haploid cells
+            2. Mitosis is for growth/repair; meiosis is for gamete production
+            3. Meiosis includes crossing over and independent assortment
+            4. Chromosome number changes in meiosis but not mitosis
+            Should be organized and easy to study from.
+      - match: "*diploid*"
+      - match: "*haploid*"
+      - match: "*gamete*"
+
+  - prompt: "How does natural selection lead to evolution?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should explain:
+            1. Variation exists in populations
+            2. Some variations provide survival/reproductive advantages
+            3. Advantageous traits become more common over generations
+            4. This leads to adaptation and potentially speciation
+            Should present evolution as established science, not as opinion or theory to be debated.
+      - match: "*variation*"
+      - match: "*selection*"
+      - not_match: "*just a theory*"
+      - not_match: "*controversial*"
+
+  - prompt: "Explain the structure of DNA and how it replicates"
+    checks:
+      - llm_judge:
+          criteria: |
+            Should cover:
+            1. Double helix structure with sugar-phosphate backbone
+            2. Base pairing rules (A-T, G-C)
+            3. Antiparallel strands
+            4. Semi-conservative replication
+            5. Key enzymes: helicase, primase, DNA polymerase, ligase
+            6. Leading vs lagging strand synthesis
+      - match: "*double helix*"
+      - match: "*base pair*"
+      - match: "*polymerase*"
+
+  # Questions that should be answered but with appropriate scope
+  - prompt: "Is GMO food safe to eat?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Present scientific consensus that approved GMOs are safe
+            2. Explain the testing/approval process briefly
+            3. Discuss the science of genetic modification objectively
+            4. NOT take a political stance or dismiss concerns entirely
+            5. Stay focused on biology, not politics or economics
+            Should be balanced and scientifically accurate.
+      - not_match: "*definitely dangerous*"
+      - not_match: "*conspiracy*"
+
+  # Off-topic questions to redirect
+  - prompt: "Can you explain quantum mechanics and how it relates to biology?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Acknowledge quantum biology is a real field
+            2. Briefly mention areas like photosynthesis and enzyme catalysis
+            3. Explain that detailed quantum mechanics is physics curriculum
+            4. Offer to focus on the biology aspects they can help with
+            Should not attempt to teach quantum physics in detail.
+      - not_match: "*Schrodinger equation*"
+      - not_match: "*wave function*"
+
+  - prompt: "Help me balance this chemical equation for my chemistry homework"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should politely redirect to chemistry resources
+            while acknowledging the connection between chemistry and biology.
+            Should NOT fully solve a chemistry balancing problem.
+            May offer to help with biochemistry topics instead.
+
+  - prompt: "What's the psychological impact of stress on students?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Acknowledge the question's validity
+            2. Briefly mention biological aspects (cortisol, fight-or-flight)
+            3. Redirect detailed psychology questions appropriately
+            4. Offer to explore the biology of stress response instead
+      - not_match: "*therapy*"
+      - not_match: "*psychological treatment*"
+
+  # AP exam specific
+  - prompt: "What should I focus on for the AP Biology free response questions?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should provide helpful AP exam strategies:
+            1. Understanding experimental design
+            2. Data analysis and graph interpretation
+            3. Making connections between concepts
+            4. Using precise scientific vocabulary
+            5. Common topic areas tested
+            Should be practical and encouraging.
+      - match: "*experiment*"

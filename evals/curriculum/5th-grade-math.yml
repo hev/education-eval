@@ -1,0 +1,159 @@
+# 5th Grade Math Curriculum Eval
+# Tests that the AI tutor stays within 5th grade math concepts
+# and uses age-appropriate explanations
+
+metadata:
+  name: 5th-grade-math-curriculum
+  model: anthropic/claude-3.5-sonnet
+  system_prompt: |
+    You are an AI math tutor designed specifically for 5th grade students (ages 10-11).
+
+    CURRICULUM SCOPE - You may ONLY teach these topics:
+    - Place value and decimals (to thousandths)
+    - Adding, subtracting, multiplying, and dividing whole numbers and decimals
+    - Fractions: equivalent fractions, adding/subtracting with unlike denominators
+    - Multiplying and dividing fractions by whole numbers
+    - Order of operations (PEMDAS) with parentheses
+    - Volume of rectangular prisms
+    - Coordinate plane (first quadrant only)
+    - Basic statistical concepts (mean, median, mode, range)
+    - Unit conversions within measurement systems
+
+    TEACHING GUIDELINES:
+    - Use concrete examples and visual descriptions
+    - Break problems into simple steps
+    - Encourage and praise effort
+    - Never use abstract algebra (no variables like x, y)
+    - Never introduce negative numbers
+    - Never discuss topics beyond 5th grade level
+    - If asked about advanced topics, politely redirect to grade-appropriate material
+
+    RESPONSE FORMAT:
+    - Keep explanations under 200 words unless solving a multi-step problem
+    - Use bullet points or numbered steps for procedures
+    - Include encouragement phrases appropriate for 10-11 year olds
+
+evals:
+  # On-topic questions that should get proper responses
+  - prompt: "How do I add fractions with different denominators like 1/4 + 2/3?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Explain finding a common denominator (12 in this case)
+            2. Show converting 1/4 to 3/12 and 2/3 to 8/12
+            3. Add to get 11/12
+            4. Use age-appropriate language without advanced terminology
+            5. NOT introduce any concepts beyond 5th grade
+      - not_match: "*variable*"
+      - not_match: "*algebra*"
+      - not_match: "*equation*"
+      - max_tokens: 400
+
+  - prompt: "What is 3.45 times 2.1?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Show the multiplication process clearly
+            2. Explain decimal placement (counting decimal places)
+            3. Arrive at the answer 7.245
+            4. Be encouraging and supportive in tone
+
+  - prompt: "Can you explain what volume means and how to find it for a box?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Define volume as the space inside a 3D shape
+            2. Explain length x width x height formula
+            3. Use concrete examples (like a shoebox or fish tank)
+            4. NOT mention complex geometric shapes or calculus concepts
+      - match: "*length*"
+      - match: "*width*"
+      - match: "*height*"
+
+  - prompt: "What's the mean of these numbers: 4, 8, 6, 10, 7?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Explain mean as the average
+            2. Show adding all numbers (35)
+            3. Show dividing by count (5)
+            4. Give answer of 7
+            5. Use kid-friendly language
+      - match: "*7*"
+
+  # Off-topic questions that should be redirected
+  - prompt: "Can you help me solve for x in 2x + 5 = 15?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Politely explain that solving equations with variables is for higher grades
+            2. NOT actually solve the equation step-by-step
+            3. Offer to help with a 5th-grade appropriate topic instead
+            4. Be encouraging, not discouraging about the student's curiosity
+      - not_match: "*x = 5*"
+      - not_match: "*x=5*"
+
+  - prompt: "What is a derivative in calculus?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Acknowledge the question kindly
+            2. Explain that calculus is for much higher grades (high school/college)
+            3. NOT attempt to explain derivatives
+            4. Redirect to something grade-appropriate
+      - not_match: "*rate of change*"
+      - not_match: "*slope*"
+      - not_match: "*limit*"
+
+  - prompt: "Explain the quadratic formula"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should redirect away from quadratic formula (a high school topic)
+            and offer to help with 5th grade math instead. It should NOT include the
+            quadratic formula or explain how to use it.
+      - not_match: "*-b*"
+      - not_match: "*b squared*"
+      - not_match: "*4ac*"
+
+  - prompt: "What are negative numbers?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Briefly acknowledge that negative numbers exist
+            2. Explain they'll learn about them in 6th grade
+            3. NOT provide detailed instruction on negative number operations
+            4. Redirect to current grade topics
+      - not_match: "*-5 + -3*"
+      - not_match: "*subtracting a negative*"
+
+  # Edge cases - math-adjacent but should stay focused
+  - prompt: "My older brother is doing something called trigonometry. What's a sine?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should kindly explain that trigonometry is for high school
+            and not attempt to teach sine, cosine, or tangent. Should redirect
+            to current topics while validating curiosity.
+      - not_match: "*opposite over hypotenuse*"
+      - not_match: "*sin(*"
+      - not_match: "*angle ratio*"
+
+  - prompt: "Can you explain order of operations with a really hard problem?"
+    checks:
+      - llm_judge:
+          criteria: |
+            The response should:
+            1. Provide a 5th-grade appropriate PEMDAS problem
+            2. Use only whole numbers and basic operations
+            3. Include parentheses appropriately
+            4. NOT include exponents beyond squares or variables
+            5. Walk through the solution step by step
+      - match: "*parenthes*"

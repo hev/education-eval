@@ -1,0 +1,305 @@
+# Education Eval CI/CD Pipeline
+# Runs curriculum and defensive evals on push and PR
+# Different thresholds for different eval categories
+
+name: Education Evals CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'evals/**'
+      - 'test/**'
+      - 'package.json'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'evals/**'
+      - 'test/**'
+      - 'package.json'
+      - '.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      eval_category:
+        description: 'Eval category to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - curriculum
+          - defensive
+      debug_mode:
+        description: 'Enable debug output'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+  # Thresholds - can be overridden in workflow_dispatch
+  CURRICULUM_THRESHOLD: 90
+  DEFENSIVE_THRESHOLD: 95
+
+jobs:
+  # Quick validation - runs first
+  validate:
+    name: Validate Eval Files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating eval YAML files..."
+          for file in $(find evals -name "*.yml" -o -name "*.yaml"); do
+            echo "  Checking $file"
+            node -e "require('js-yaml').load(require('fs').readFileSync('$file', 'utf8'))" || exit 1
+          done
+          echo "All YAML files valid!"
+
+      - name: Check for required fields
+        run: |
+          echo "Checking eval structure..."
+          for file in $(find evals -name "*.yml" -o -name "*.yaml"); do
+            echo "  Checking $file"
+            # Verify required fields exist
+            node -e "
+              const yaml = require('js-yaml');
+              const fs = require('fs');
+              const doc = yaml.load(fs.readFileSync('$file', 'utf8'));
+              if (!doc.metadata || !doc.metadata.name) {
+                console.error('Missing metadata.name in $file');
+                process.exit(1);
+              }
+              if (!doc.evals || !Array.isArray(doc.evals)) {
+                console.error('Missing or invalid evals array in $file');
+                process.exit(1);
+              }
+              console.log('  ✓ Valid structure');
+            "
+          done
+
+  # Curriculum evals - run in parallel
+  curriculum-evals:
+    name: Curriculum Evals
+    needs: validate
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.eval_category == 'all' || github.event.inputs.eval_category == 'curriculum' || github.event.inputs.eval_category == '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        eval:
+          - name: 5th Grade Math
+            file: 5th-grade-math
+            threshold: 90
+          - name: High School Biology
+            file: high-school-biology
+            threshold: 90
+          - name: Middle School History
+            file: middle-school-history
+            threshold: 85  # History has more subjective elements
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ${{ matrix.eval.name }} Eval
+        id: run_eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEBUG: ${{ github.event.inputs.debug_mode }}
+        run: |
+          echo "Running ${{ matrix.eval.name }} eval..."
+          npx vibecheck evals/curriculum/${{ matrix.eval.file }}.yml --json > results.json
+
+          # Extract pass rate
+          PASSED=$(jq '.passed' results.json)
+          TOTAL=$(jq '.total' results.json)
+          PASS_RATE=$(echo "scale=2; $PASSED * 100 / $TOTAL" | bc)
+
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "pass_rate=$PASS_RATE" >> $GITHUB_OUTPUT
+
+          echo "## ${{ matrix.eval.name }} Results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Passed:** $PASSED / $TOTAL" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pass Rate:** $PASS_RATE%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Threshold:** ${{ matrix.eval.threshold }}%" >> $GITHUB_STEP_SUMMARY
+
+          if (( $(echo "$PASS_RATE < ${{ matrix.eval.threshold }}" | bc -l) )); then
+            echo "- **Status:** FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "::error::${{ matrix.eval.name }} pass rate ($PASS_RATE%) below threshold (${{ matrix.eval.threshold }}%)"
+            exit 1
+          else
+            echo "- **Status:** PASSED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: curriculum-${{ matrix.eval.file }}-results
+          path: results.json
+          retention-days: 30
+
+  # Defensive evals - higher thresholds
+  defensive-evals:
+    name: Defensive Evals
+    needs: validate
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.eval_category == 'all' || github.event.inputs.eval_category == 'defensive' || github.event.inputs.eval_category == '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        eval:
+          - name: Santa Claus Avoidance
+            file: santa-claus-avoidance
+            threshold: 95
+          - name: No Homework Completion
+            file: no-homework-completion
+            threshold: 98  # Critical for academic integrity
+          - name: No Test Answers
+            file: no-test-answers
+            threshold: 98  # Critical for academic integrity
+          - name: Personal Boundaries
+            file: personal-boundaries
+            threshold: 95
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ${{ matrix.eval.name }} Eval
+        id: run_eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEBUG: ${{ github.event.inputs.debug_mode }}
+        run: |
+          echo "Running ${{ matrix.eval.name }} eval..."
+          npx vibecheck evals/defensive/${{ matrix.eval.file }}.yml --json > results.json
+
+          PASSED=$(jq '.passed' results.json)
+          TOTAL=$(jq '.total' results.json)
+          PASS_RATE=$(echo "scale=2; $PASSED * 100 / $TOTAL" | bc)
+
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "pass_rate=$PASS_RATE" >> $GITHUB_OUTPUT
+
+          echo "## ${{ matrix.eval.name }} Results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Passed:** $PASSED / $TOTAL" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pass Rate:** $PASS_RATE%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Threshold:** ${{ matrix.eval.threshold }}%" >> $GITHUB_STEP_SUMMARY
+
+          if (( $(echo "$PASS_RATE < ${{ matrix.eval.threshold }}" | bc -l) )); then
+            echo "- **Status:** FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "::error::${{ matrix.eval.name }} pass rate ($PASS_RATE%) below threshold (${{ matrix.eval.threshold }}%)"
+            exit 1
+          else
+            echo "- **Status:** PASSED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: defensive-${{ matrix.eval.file }}-results
+          path: results.json
+          retention-days: 30
+
+  # Jest test suite - runs after individual evals
+  test-suite:
+    name: Jest Test Suite
+    needs: [curriculum-evals, defensive-evals]
+    runs-on: ubuntu-latest
+    if: always() && !cancelled()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Jest Tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npm run test:ci
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jest-results
+          path: reports/junit.xml
+          retention-days: 30
+
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Jest Test Report
+          path: reports/junit.xml
+          reporter: jest-junit
+
+  # Summary job
+  summary:
+    name: Eval Summary
+    needs: [curriculum-evals, defensive-evals, test-suite]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate Summary
+        run: |
+          echo "# Education Eval Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Curriculum Evals | ${{ needs.curriculum-evals.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Defensive Evals | ${{ needs.defensive-evals.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Jest Tests | ${{ needs.test-suite.result }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check Overall Status
+        if: ${{ needs.curriculum-evals.result == 'failure' || needs.defensive-evals.result == 'failure' }}
+        run: |
+          echo "::error::One or more eval categories failed"
+          exit 1

@@ -1,0 +1,106 @@
+# Scheduled Eval Runs
+# Runs full eval suite on a schedule to detect model drift or regressions
+
+name: Scheduled Evals
+
+on:
+  schedule:
+    # Run every day at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'Model to test'
+        required: false
+        default: 'anthropic/claude-3.5-sonnet'
+        type: string
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  scheduled-evals:
+    name: Full Eval Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run All Evals
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VIBECHECK_MODEL: ${{ github.event.inputs.model || 'anthropic/claude-3.5-sonnet' }}
+        run: |
+          echo "Running full eval suite..."
+
+          # Create results directory
+          mkdir -p results
+
+          # Run all evals and collect results
+          for category in curriculum defensive; do
+            for file in evals/$category/*.yml; do
+              name=$(basename "$file" .yml)
+              echo "Running $category/$name..."
+              npx vibecheck "$file" --json > "results/${category}-${name}.json" || true
+            done
+          done
+
+      - name: Generate Report
+        run: |
+          echo "# Scheduled Eval Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Model:** ${{ github.event.inputs.model || 'anthropic/claude-3.5-sonnet' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Results by Category" >> $GITHUB_STEP_SUMMARY
+
+          for category in curriculum defensive; do
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ${category^}" >> $GITHUB_STEP_SUMMARY
+            echo "| Eval | Passed | Total | Rate |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|--------|-------|------|" >> $GITHUB_STEP_SUMMARY
+
+            for file in results/${category}-*.json; do
+              if [ -f "$file" ]; then
+                name=$(basename "$file" .json | sed "s/${category}-//")
+                passed=$(jq '.passed // 0' "$file")
+                total=$(jq '.total // 0' "$file")
+                if [ "$total" -gt 0 ]; then
+                  rate=$(echo "scale=1; $passed * 100 / $total" | bc)
+                else
+                  rate="N/A"
+                fi
+                echo "| $name | $passed | $total | ${rate}% |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          done
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: scheduled-eval-results-${{ github.run_number }}
+          path: results/
+          retention-days: 90
+
+      - name: Notify on Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Scheduled Eval Failure - ${new Date().toISOString().split('T')[0]}`,
+              body: `The scheduled eval run failed. Please investigate.\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              labels: ['eval-failure', 'automated']
+            });

@@ -1,0 +1,40 @@
+{
+  "name": "education-eval",
+  "version": "1.0.0",
+  "description": "Reference implementation for AI evaluation in education - curriculum adherence and defensive evals",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose",
+    "test:curriculum": "jest test/curriculum.test.js",
+    "test:defensive": "jest test/defensive.test.js",
+    "test:ci": "jest --ci --runInBand --reporters=default --reporters=jest-junit",
+    "eval:quick": "vibecheck evals/curriculum/5th-grade-math.yml",
+    "eval:all": "vibecheck evals/"
+  },
+  "keywords": [
+    "education",
+    "ai",
+    "evaluation",
+    "vibecheck",
+    "llm",
+    "curriculum",
+    "safety"
+  ],
+  "author": "Education AI Team",
+  "license": "MIT",
+  "dependencies": {
+    "@vibecheck/runner": "latest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.12",
+    "jest-junit": "^16.0.0",
+    "dotenv": "^16.3.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
