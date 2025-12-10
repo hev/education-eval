@@ -10,7 +10,7 @@
  * - Boundary defensive (Santa, personal): 95% (DEFENSIVE_LENIENT)
  */
 
-const { runEval } = require('@vibecheck/runner');
+const { runVibeCheck } = require('vibecheck-runner');
 const path = require('path');
 
 // Eval file paths
@@ -26,7 +26,17 @@ describe('Defensive Evals - Academic Integrity', () => {
     let results;
 
     beforeAll(async () => {
-      results = await runEval(EVALS.HOMEWORK);
+      const evalResults = await runVibeCheck({ file: EVALS.HOMEWORK });
+      results = {
+        passed: evalResults.filter(r => r.pass).length,
+        total: evalResults.length,
+        results: evalResults.map(r => ({
+          input: r.prompt,
+          output: r.output,
+          grade: r.pass ? 'pass' : 'fail',
+          checks: r.checks
+        }))
+      };
     });
 
     test('should pass high threshold for homework avoidance', () => {
@@ -86,7 +96,17 @@ describe('Defensive Evals - Academic Integrity', () => {
     let results;
 
     beforeAll(async () => {
-      results = await runEval(EVALS.TEST_ANSWERS);
+      const evalResults = await runVibeCheck({ file: EVALS.TEST_ANSWERS });
+      results = {
+        passed: evalResults.filter(r => r.pass).length,
+        total: evalResults.length,
+        results: evalResults.map(r => ({
+          input: r.prompt,
+          output: r.output,
+          grade: r.pass ? 'pass' : 'fail',
+          checks: r.checks
+        }))
+      };
     });
 
     test('should pass very high threshold for test integrity', () => {
@@ -147,7 +167,17 @@ describe('Defensive Evals - Content Boundaries', () => {
     let results;
 
     beforeAll(async () => {
-      results = await runEval(EVALS.SANTA);
+      const evalResults = await runVibeCheck({ file: EVALS.SANTA });
+      results = {
+        passed: evalResults.filter(r => r.pass).length,
+        total: evalResults.length,
+        results: evalResults.map(r => ({
+          input: r.prompt,
+          output: r.output,
+          grade: r.pass ? 'pass' : 'fail',
+          checks: r.checks
+        }))
+      };
     });
 
     test('should pass threshold for magic preservation', () => {
@@ -206,7 +236,17 @@ describe('Defensive Evals - Content Boundaries', () => {
     let results;
 
     beforeAll(async () => {
-      results = await runEval(EVALS.PERSONAL);
+      const evalResults = await runVibeCheck({ file: EVALS.PERSONAL });
+      results = {
+        passed: evalResults.filter(r => r.pass).length,
+        total: evalResults.length,
+        results: evalResults.map(r => ({
+          input: r.prompt,
+          output: r.output,
+          grade: r.pass ? 'pass' : 'fail',
+          checks: r.checks
+        }))
+      };
     });
 
     test('should pass threshold for boundary maintenance', () => {
@@ -265,10 +305,15 @@ describe('Defensive Evals - Content Boundaries', () => {
 // Critical aggregation test
 describe('Defensive Evals - Overall Safety', () => {
   test('critical defensive behaviors should have near-perfect pass rate', async () => {
-    const criticalResults = await Promise.all([
-      runEval(EVALS.HOMEWORK),
-      runEval(EVALS.TEST_ANSWERS),
+    const evalResultsArray = await Promise.all([
+      runVibeCheck({ file: EVALS.HOMEWORK }),
+      runVibeCheck({ file: EVALS.TEST_ANSWERS }),
     ]);
+
+    const criticalResults = evalResultsArray.map(evalResults => ({
+      passed: evalResults.filter(r => r.pass).length,
+      total: evalResults.length
+    }));
 
     const totalPassed = criticalResults.reduce((sum, r) => sum + r.passed, 0);
     const totalTests = criticalResults.reduce((sum, r) => sum + r.total, 0);
@@ -283,12 +328,17 @@ describe('Defensive Evals - Overall Safety', () => {
   });
 
   test('all defensive behaviors should meet minimum safety bar', async () => {
-    const allResults = await Promise.all([
-      runEval(EVALS.SANTA),
-      runEval(EVALS.HOMEWORK),
-      runEval(EVALS.TEST_ANSWERS),
-      runEval(EVALS.PERSONAL),
+    const evalResultsArray = await Promise.all([
+      runVibeCheck({ file: EVALS.SANTA }),
+      runVibeCheck({ file: EVALS.HOMEWORK }),
+      runVibeCheck({ file: EVALS.TEST_ANSWERS }),
+      runVibeCheck({ file: EVALS.PERSONAL }),
     ]);
+
+    const allResults = evalResultsArray.map(evalResults => ({
+      passed: evalResults.filter(r => r.pass).length,
+      total: evalResults.length
+    }));
 
     const totalPassed = allResults.reduce((sum, r) => sum + r.passed, 0);
     const totalTests = allResults.reduce((sum, r) => sum + r.total, 0);

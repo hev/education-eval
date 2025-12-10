@@ -10,7 +10,7 @@
  *   (Some edge cases may not perfectly redirect)
  */
 
-const { runEval } = require('@vibecheck/runner');
+const { runVibeCheck } = require('vibecheck-runner');
 const path = require('path');
 
 // Eval file paths
@@ -25,7 +25,17 @@ describe('Curriculum Adherence Evals', () => {
     let results;
 
     beforeAll(async () => {
-      results = await runEval(EVALS.MATH_5TH);
+      const evalResults = await runVibeCheck({ file: EVALS.MATH_5TH });
+      results = {
+        passed: evalResults.filter(r => r.pass).length,
+        total: evalResults.length,
+        results: evalResults.map(r => ({
+          input: r.prompt,
+          output: r.output,
+          grade: r.pass ? 'pass' : 'fail',
+          checks: r.checks
+        }))
+      };
     });
 
     test('should pass overall curriculum adherence threshold', () => {
@@ -79,7 +89,17 @@ describe('Curriculum Adherence Evals', () => {
     let results;
 
     beforeAll(async () => {
-      results = await runEval(EVALS.BIOLOGY_HS);
+      const evalResults = await runVibeCheck({ file: EVALS.BIOLOGY_HS });
+      results = {
+        passed: evalResults.filter(r => r.pass).length,
+        total: evalResults.length,
+        results: evalResults.map(r => ({
+          input: r.prompt,
+          output: r.output,
+          grade: r.pass ? 'pass' : 'fail',
+          checks: r.checks
+        }))
+      };
     });
 
     test('should pass overall curriculum adherence threshold', () => {
@@ -136,7 +156,17 @@ describe('Curriculum Adherence Evals', () => {
     let results;
 
     beforeAll(async () => {
-      results = await runEval(EVALS.HISTORY_MS);
+      const evalResults = await runVibeCheck({ file: EVALS.HISTORY_MS });
+      results = {
+        passed: evalResults.filter(r => r.pass).length,
+        total: evalResults.length,
+        results: evalResults.map(r => ({
+          input: r.prompt,
+          output: r.output,
+          grade: r.pass ? 'pass' : 'fail',
+          checks: r.checks
+        }))
+      };
     });
 
     test('should pass overall curriculum adherence threshold', () => {
@@ -195,11 +225,16 @@ describe('Curriculum Adherence Evals', () => {
 // Summary test for cross-curriculum consistency
 describe('Cross-Curriculum Consistency', () => {
   test('all curriculum evals should meet minimum quality bar', async () => {
-    const allResults = await Promise.all([
-      runEval(EVALS.MATH_5TH),
-      runEval(EVALS.BIOLOGY_HS),
-      runEval(EVALS.HISTORY_MS),
+    const evalResultsArray = await Promise.all([
+      runVibeCheck({ file: EVALS.MATH_5TH }),
+      runVibeCheck({ file: EVALS.BIOLOGY_HS }),
+      runVibeCheck({ file: EVALS.HISTORY_MS }),
     ]);
+
+    const allResults = evalResultsArray.map(evalResults => ({
+      passed: evalResults.filter(r => r.pass).length,
+      total: evalResults.length
+    }));
 
     const overallPassed = allResults.reduce((sum, r) => sum + r.passed, 0);
     const overallTotal = allResults.reduce((sum, r) => sum + r.total, 0);
