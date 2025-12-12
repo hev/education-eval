@@ -7,35 +7,22 @@
  * Thresholds:
  * - On-topic questions: 90% pass rate (CURRICULUM_STANDARD)
  * - Off-topic redirects: 85% pass rate (CURRICULUM_LENIENT)
- *   (Some edge cases may not perfectly redirect)
+ *
+ * NOTE: Evals are run ONCE via runAllEvalsOnce() and cached.
+ * All tests use the cached results.
  */
 
-const { runVibeCheck } = require('vibecheck-runner');
-const path = require('path');
-
-// Eval file paths
-const EVALS = {
-  MATH_5TH: path.join(__dirname, '../evals/curriculum/5th-grade-math.yml'),
-  BIOLOGY_HS: path.join(__dirname, '../evals/curriculum/high-school-biology.yml'),
-  HISTORY_MS: path.join(__dirname, '../evals/curriculum/middle-school-history.yml'),
-};
+// Run all evals once at the start of this test file
+beforeAll(async () => {
+  await runAllEvalsOnce();
+});
 
 describe('Curriculum Adherence Evals', () => {
   describe('5th Grade Math', () => {
     let results;
 
-    beforeAll(async () => {
-      const evalResults = await runVibeCheck({ file: EVALS.MATH_5TH });
-      results = {
-        passed: evalResults.filter(r => r.pass).length,
-        total: evalResults.length,
-        results: evalResults.map(r => ({
-          input: r.prompt,
-          output: r.output,
-          grade: r.pass ? 'pass' : 'fail',
-          checks: r.checks
-        }))
-      };
+    beforeAll(() => {
+      results = getEvalResults().MATH_5TH;
     });
 
     test('should pass overall curriculum adherence threshold', () => {
@@ -88,18 +75,8 @@ describe('Curriculum Adherence Evals', () => {
   describe('High School Biology', () => {
     let results;
 
-    beforeAll(async () => {
-      const evalResults = await runVibeCheck({ file: EVALS.BIOLOGY_HS });
-      results = {
-        passed: evalResults.filter(r => r.pass).length,
-        total: evalResults.length,
-        results: evalResults.map(r => ({
-          input: r.prompt,
-          output: r.output,
-          grade: r.pass ? 'pass' : 'fail',
-          checks: r.checks
-        }))
-      };
+    beforeAll(() => {
+      results = getEvalResults().BIOLOGY_HS;
     });
 
     test('should pass overall curriculum adherence threshold', () => {
@@ -155,18 +132,8 @@ describe('Curriculum Adherence Evals', () => {
   describe('Middle School US History', () => {
     let results;
 
-    beforeAll(async () => {
-      const evalResults = await runVibeCheck({ file: EVALS.HISTORY_MS });
-      results = {
-        passed: evalResults.filter(r => r.pass).length,
-        total: evalResults.length,
-        results: evalResults.map(r => ({
-          input: r.prompt,
-          output: r.output,
-          grade: r.pass ? 'pass' : 'fail',
-          checks: r.checks
-        }))
-      };
+    beforeAll(() => {
+      results = getEvalResults().HISTORY_MS;
     });
 
     test('should pass overall curriculum adherence threshold', () => {
@@ -222,19 +189,15 @@ describe('Curriculum Adherence Evals', () => {
   });
 });
 
-// Summary test for cross-curriculum consistency
+// Summary test for cross-curriculum consistency (uses cached results)
 describe('Cross-Curriculum Consistency', () => {
-  test('all curriculum evals should meet minimum quality bar', async () => {
-    const evalResultsArray = await Promise.all([
-      runVibeCheck({ file: EVALS.MATH_5TH }),
-      runVibeCheck({ file: EVALS.BIOLOGY_HS }),
-      runVibeCheck({ file: EVALS.HISTORY_MS }),
-    ]);
-
-    const allResults = evalResultsArray.map(evalResults => ({
-      passed: evalResults.filter(r => r.pass).length,
-      total: evalResults.length
-    }));
+  test('all curriculum evals should meet minimum quality bar', () => {
+    const cache = getEvalResults();
+    const allResults = [
+      cache.MATH_5TH,
+      cache.BIOLOGY_HS,
+      cache.HISTORY_MS,
+    ];
 
     const overallPassed = allResults.reduce((sum, r) => sum + r.passed, 0);
     const overallTotal = allResults.reduce((sum, r) => sum + r.total, 0);

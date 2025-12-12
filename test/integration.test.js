@@ -5,14 +5,15 @@
  * - All eval files are valid YAML
  * - All evals can be loaded and executed
  * - Results format is consistent
- * - Performance is acceptable
+ *
+ * NOTE: Evals are run ONCE via runAllEvalsOnce() and cached.
+ * All tests use the cached results - no additional eval runs needed.
  */
 
-const { runVibeCheck } = require('vibecheck-runner');
 const path = require('path');
 const fs = require('fs');
 
-// Discover all eval files
+// Discover all eval files (for file discovery tests only)
 const EVALS_DIR = path.join(__dirname, '../evals');
 const getAllEvalFiles = (dir) => {
   const files = [];
@@ -29,6 +30,11 @@ const getAllEvalFiles = (dir) => {
 
   return files;
 };
+
+// Run all evals once at the start of this test file
+beforeAll(async () => {
+  await runAllEvalsOnce();
+});
 
 describe('Integration Tests', () => {
   describe('Eval File Discovery', () => {
@@ -58,13 +64,27 @@ describe('Integration Tests', () => {
   });
 
   describe('Eval Execution', () => {
+    // Map of eval file names to cache keys
+    const evalFileToKey = {
+      '5th-grade-math.yml': 'MATH_5TH',
+      'high-school-biology.yml': 'BIOLOGY_HS',
+      'middle-school-history.yml': 'HISTORY_MS',
+      'santa-claus-avoidance.yml': 'SANTA',
+      'no-homework-completion.yml': 'HOMEWORK',
+      'no-test-answers.yml': 'TEST_ANSWERS',
+      'personal-boundaries.yml': 'PERSONAL',
+    };
+
     const evalFiles = getAllEvalFiles(EVALS_DIR);
 
-    // Run each eval file to verify it's valid
+    // Verify each eval file was run successfully (uses cached results)
     test.each(evalFiles.map(f => [path.basename(f), f]))(
-      'should successfully run %s',
-      async (name, filepath) => {
-        const results = await runVibeCheck({ file: filepath });
+      'should have valid results for %s',
+      (name, filepath) => {
+        const cacheKey = evalFileToKey[name];
+        expect(cacheKey).toBeDefined();
+
+        const results = getEvalResults()[cacheKey];
 
         // Basic structure validation
         expect(results).toHaveProperty('passed');
@@ -84,69 +104,48 @@ describe('Integration Tests', () => {
         });
 
         console.log(`  ${name}: ${results.passed}/${results.total} passed`);
-      },
-      120000 // 2 minute timeout per eval
+      }
     );
   });
 
   describe('Performance', () => {
-    test('single eval should complete within timeout', async () => {
-      const startTime = Date.now();
-      const evalFile = path.join(EVALS_DIR, 'curriculum/5th-grade-math.yml');
+    test('all evals should have completed within reasonable time', () => {
+      const meta = getEvalResults()._meta;
+      expect(meta).toBeDefined();
+      expect(meta.runTime).toBeDefined();
 
-      await runVibeCheck({ file: evalFile });
+      console.log(`  All evals completed in ${meta.runTime}ms`);
 
-      const duration = Date.now() - startTime;
-      console.log(`  5th-grade-math.yml completed in ${duration}ms`);
-
-      // Should complete within 2 minutes for ~10 evals
-      expect(duration).toBeLessThan(120000);
-    });
-
-    test('parallel execution should be faster than sequential', async () => {
-      const evalFiles = [
-        path.join(EVALS_DIR, 'curriculum/5th-grade-math.yml'),
-        path.join(EVALS_DIR, 'defensive/santa-claus-avoidance.yml'),
-      ];
-
-      // Parallel execution
-      const parallelStart = Date.now();
-      await Promise.all(evalFiles.map(f => runVibeCheck({ file: f })));
-      const parallelDuration = Date.now() - parallelStart;
-
-      // Sequential execution
-      const sequentialStart = Date.now();
-      for (const f of evalFiles) {
-        await runVibeCheck({ file: f });
-      }
-      const sequentialDuration = Date.now() - sequentialStart;
-
-      console.log(`  Parallel: ${parallelDuration}ms`);
-      console.log(`  Sequential: ${sequentialDuration}ms`);
-      console.log(`  Speedup: ${(sequentialDuration / parallelDuration).toFixed(2)}x`);
-
-      // Parallel should be at least somewhat faster (allowing for overhead)
-      // This might not always be true due to rate limits, so we're lenient
-      expect(parallelDuration).toBeLessThanOrEqual(sequentialDuration * 1.5);
+      // All 7 evals should complete within 5 minutes total
+      expect(meta.runTime).toBeLessThan(300000);
     });
   });
 
   describe('Results Consistency', () => {
-    test('results should be deterministic-ish for same input', async () => {
-      const evalFile = path.join(EVALS_DIR, 'curriculum/5th-grade-math.yml');
+    test('all eval results should have consistent structure', () => {
+      const cache = getEvalResults();
+      const evalKeys = ['MATH_5TH', 'BIOLOGY_HS', 'HISTORY_MS', 'SANTA', 'HOMEWORK', 'TEST_ANSWERS', 'PERSONAL'];
 
-      const results1 = await runVibeCheck({ file: evalFile });
-      const results2 = await runVibeCheck({ file: evalFile });
+      evalKeys.forEach(key => {
+        const results = cache[key];
+        expect(results).toBeDefined();
+        expect(typeof results.passed).toBe('number');
+        expect(typeof results.total).toBe('number');
+        expect(results.passed).toBeLessThanOrEqual(results.total);
+        expect(results.results.length).toBe(results.total);
+      });
+    });
 
-      // Total should always be the same
-      expect(results1.total).toBe(results2.total);
+    test('total eval count should match expected', () => {
+      const cache = getEvalResults();
+      const evalKeys = ['MATH_5TH', 'BIOLOGY_HS', 'HISTORY_MS', 'SANTA', 'HOMEWORK', 'TEST_ANSWERS', 'PERSONAL'];
 
-      // Pass rate should be similar (within 20% of each other)
-      // LLM responses can vary, so we allow some tolerance
-      const rate1 = results1.passed / results1.total;
-      const rate2 = results2.passed / results2.total;
+      const totalEvals = evalKeys.reduce((sum, key) => sum + cache[key].total, 0);
 
-      expect(Math.abs(rate1 - rate2)).toBeLessThan(0.2);
+      console.log(`  Total evals across all files: ${totalEvals}`);
+
+      // Should have a reasonable number of evals
+      expect(totalEvals).toBeGreaterThan(50);
     });
   });
 });

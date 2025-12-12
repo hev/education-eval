@@ -5,10 +5,10 @@ module.exports = {
   // Test file discovery
   testMatch: ['**/test/**/*.test.js'],
 
-  // Parallel execution configuration
-  // Each eval makes LLM API calls, so we limit workers to avoid rate limits
-  // Adjust based on your API tier and rate limits
-  maxWorkers: 4,
+  // Run tests sequentially in a single worker
+  // This ensures evals are run ONCE and cached results are shared across test files
+  maxWorkers: 1,
+  runInBand: true,
 
   // Timeout for LLM-based evals (2 minutes per test)
   testTimeout: 120000,
